@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金融问答机器人</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            padding: 8px 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .chat-container {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-info {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .session-id {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .clear-btn {
+            padding: 4px 12px;
+            background: rgba(239, 68, 68, 0.2);
+            color: rgba(239, 68, 68, 0.8);
+            border: none;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 400px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 14px 18px;
+            border-radius: 20px;
+            line-height: 1.5;
+            font-size: 15px;
+            position: relative;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+            border-bottom-left-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bot-message .intent-tag {
+            font-size: 10px;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .compare-container {
+            display: none;
+            padding: 24px;
+        }
+
+        .compare-container.active {
+            display: block;
+        }
+
+        .compare-question {
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .compare-question p {
+            font-size: 13px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .compare-question h4 {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .compare-results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .compare-results {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .compare-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .compare-card.base .compare-card-header {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .compare-card.fine-tuned .compare-card-header {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .compare-card-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .compare-card-body {
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .compare-card-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .compare-card-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .loading-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .loading-dot {
+            width: 5px;
+            height: 5px;
+            background: rgba(102, 126, 234, 0.8);
+            border-radius: 50%;
+            animation: loading 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        .loading-dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes loading {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .welcome-message .avatar {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .welcome-message h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .welcome-message p {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .quick-questions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .quick-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-btn:hover {
+            background: rgba(102, 126, 234, 0.5);
+            border-color: rgba(102, 126, 234, 0.5);
+            color: #fff;
+        }
+
+        .input-container {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container input {
+            flex: 1;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            font-size: 15px;
+            color: #fff;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-container input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .input-container input:focus {
+            border-color: rgba(102, 126, 234, 0.6);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .input-container button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .input-container button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .input-container button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .input-container button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 金融问答助手</h1>
+            <p>智能金融咨询，专业解答您的疑问</p>
+        </div>
+
+        <div class="mode-selector">
+            <button class="mode-btn active" id="nlpModeBtn" onclick="switchMode('nlp')">
+                🤖 智能问答
+            </button>
+            <button class="mode-btn" id="ragModeBtn" onclick="switchMode('rag')">
+                📚 知识检索
+            </button>
+            <button class="mode-btn" id="compareModeBtn" onclick="switchMode('compare')">
+                ⚖️ 模型对比
+            </button>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-info" id="chatInfo">
+                <span>会话: <span class="session-id" id="sessionId">-</span></span>
+                <button class="clear-btn" onclick="clearSession()">清除会话</button>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message" id="welcomeMessage">
+                    <div class="avatar">💬</div>
+                    <h3>您好！我是您的金融助手</h3>
+                    <p>有什么金融问题我可以帮您解答？</p>
+                    <div class="quick-questions">
+                        <button class="quick-btn" onclick="sendQuickQuestion('什么是基金？')">什么是基金？</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('股票和基金的区别')">股票vs基金</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('投资风险评估')">风险评估</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('如何选择理财产品')">理财建议</button>
+                    </div>
+                </div>
+
+                <div class="compare-container" id="compareContainer">
+                    <div class="compare-question" id="compareQuestion">
+                        <p>请输入问题进行模型对比</p>
+                    </div>
+                    <div class="compare-results" id="compareResults"></div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input type="text" id="questionInput" placeholder="输入您的问题..." onkeydown="handleKeyDown(event)">
+                <button id="sendBtn" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const NLP_API_URL = "http://localhost:8000/chat";
+        const RAG_API_URL = "http://localhost:8000/rag-chat";
+        const COMPARE_API_URL = "http://localhost:8000/compare";
+
+        let currentMode = 'nlp';
+        let sessionId = null;
+
+        const chatMessages = document.getElementById('chatMessages');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const compareContainer = document.getElementById('compareContainer');
+        const compareQuestion = document.getElementById('compareQuestion');
+        const compareResults = document.getElementById('compareResults');
+        const chatInfo = document.getElementById('chatInfo');
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('nlpModeBtn').classList.toggle('active', mode === 'nlp');
+            document.getElementById('ragModeBtn').classList.toggle('active', mode === 'rag');
+            document.getElementById('compareModeBtn').classList.toggle('active', mode === 'compare');
+
+            compareContainer.classList.toggle('active', mode === 'compare');
+            chatInfo.style.display = mode === 'compare' ? 'none' : 'flex';
+
+            if (mode === 'compare') {
+                questionInput.placeholder = '输入问题进行模型对比...';
+            } else {
+                questionInput.placeholder = '输入您的问题...';
+            }
+        }
+
+        async function sendMessage() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            questionInput.value = '';
+
+            if (currentMode === 'compare') {
+                await sendCompareMessage(question);
+            } else {
+                await sendNormalMessage(question);
+            }
+        }
+
+        async function sendNormalMessage(question) {
+            addMessage(question, 'user');
+            sendBtn.disabled = true;
+
+            const loadingId = addLoading();
+
+            try {
+                const apiUrl = currentMode === 'nlp' ? NLP_API_URL : RAG_API_URL;
+                const payload = currentMode === 'nlp' ?
+                    { question, session_id: sessionId } :
+                    { question };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                removeLoading(loadingId);
+
+                if (data.success !== false) {
+                    if (data.session_id && !sessionId) {
+                        sessionId = data.session_id;
+                        document.getElementById('sessionId').textContent = sessionId.substring(0, 8);
+                    }
+                    addMessage(data.answer, 'bot', data.intent);
+                } else {
+                    addMessage(`错误: ${data.error || '未知错误'}`, 'bot');
+                }
+            } catch (error) {
+                removeLoading(loadingId);
+                addMessage('连接错误，请确保后端服务已启动', 'bot');
+            } finally {
+                sendBtn.disabled = false;
+                scrollToBottom();
+            }
+        }
+
+        async function sendCompareMessage(question) {
+            compareQuestion.innerHTML = `
+                <p>正在对比两个模型的回答...</p>
+                <h4>${escapeHtml(question)}</h4>
+            `;
+
+            compareResults.innerHTML = `
+                <div class="compare-card base">
+                    <div class="compare-card-header">🔵 基座模型 (Qwen2.5-7B)</div>
+                    <div class="compare-card-body loading-card">
+                        <div class="loading">
+                            <span class="loading-dot"></span>
+                            <span class="loading-dot"></span>
+                            <span class="loading-dot"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="compare-card fine-tuned">
+                    <div class="compare-card-header">🟢 微调模型 (Qwen2.5-7B + LoRA)</div>
+                    <div class="compare-card-body loading-card">
+                        <div class="loading">
+                            <span class="loading-dot"></span>
+                            <span class="loading-dot"></span>
+                            <span class="loading-dot"></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(COMPARE_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    compareResults.innerHTML = `
+                        <div class="compare-card base">
+                            <div class="compare-card-header">🔵 基座模型 (Qwen2.5-7B)</div>
+                            <div class="compare-card-body">${escapeHtml(data.base_model)}</div>
+                        </div>
+                        <div class="compare-card fine-tuned">
+                            <div class="compare-card-header">🟢 微调模型 (Qwen2.5-7B + LoRA)</div>
+                            <div class="compare-card-body">${escapeHtml(data.fine_tuned_model)}</div>
+                        </div>
+                    `;
+                } else {
+                    compareResults.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; color: #ef4444; padding: 20px;">
+                            错误: ${data.error || '请求失败'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                compareResults.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; color: #ef4444; padding: 20px;">
+                        连接错误，请确保后端服务已启动
+                    </div>
+                `;
+            }
+        }
+
+        function sendQuickQuestion(question) {
+            questionInput.value = question;
+            sendMessage();
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function addMessage(text, type, intent = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+
+            if (type === 'bot') {
+                let html = '';
+                if (intent && currentMode === 'nlp') {
+                    html += `<div class="intent-tag">${intent}</div>`;
+                }
+                html += escapeHtml(text);
+                messageDiv.innerHTML = html;
+            } else {
+                messageDiv.textContent = text;
+            }
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function addLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-message';
+            loadingDiv.innerHTML = `
+                <div class="loading">
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                </div>
+            `;
+            loadingDiv.id = 'loading-' + Date.now();
+            chatMessages.appendChild(loadingDiv);
+            scrollToBottom();
+            return loadingDiv.id;
+        }
+
+        function removeLoading(id) {
+            const loadingDiv = document.getElementById(id);
+            if (loadingDiv) loadingDiv.remove();
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        async function clearSession() {
+            if (sessionId) {
+                try { await fetch(`http://localhost:8000/session/${sessionId}`, { method: 'DELETE' }); }
+                catch (e) {}
+            }
+            sessionId = null;
+            document.getElementById('sessionId').textContent = '-';
+            chatMessages.innerHTML = `
+                <div class="welcome-message">
+                    <div class="avatar">💬</div>
+                    <h3>会话已清除</h3>
+                    <p>开始新的对话吧</p>
+                    <div class="quick-questions">
+                        <button class="quick-btn" onclick="sendQuickQuestion('什么是基金？')">什么是基金？</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('股票和基金的区别')">股票vs基金</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('投资风险评估')">风险评估</button>
+                        <button class="quick-btn" onclick="sendQuickQuestion('如何选择理财产品')">理财建议</button>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
